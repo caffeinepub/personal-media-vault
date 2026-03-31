@@ -56,8 +56,8 @@ actor {
     };
   };
 
-  let files = Map.empty<FileId, MediaFile>();
-  let folders = Map.empty<FolderId, MediaFolder>();
+  stable var files = Map.empty<FileId, MediaFile>();
+  stable var folders = Map.empty<FolderId, MediaFolder>();
 
   // Component Features
 
