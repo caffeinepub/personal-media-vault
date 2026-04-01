@@ -2,7 +2,6 @@ import { ExternalBlob } from "@/backend";
 import type { MediaFile, MediaFolder } from "@/backend";
 import { useActor } from "@/hooks/useActor";
 import { generateId } from "@/lib/mediaUtils";
-import { setBlobFilename, setBlobMimeType } from "@/utils/blobMetadata";
 import { useCallback, useState } from "react";
 
 export type { MediaFile, MediaFolder };
@@ -55,13 +54,12 @@ export function useFiles() {
         const blob = ExternalBlob.fromBytes(bytes).withUploadProgress((pct) => {
           setUploadProgress((prev) => new Map(prev).set(trackKey, pct));
         });
-        setBlobMimeType(blob, file.type || "application/octet-stream");
-        setBlobFilename(blob, file.name);
+        const mimeType = file.type || "application/octet-stream";
         await actor.createFileRecord(
           id,
           file.name,
           BigInt(file.size),
-          file.type || "application/octet-stream",
+          mimeType,
           folderId ?? null,
           tags ?? [],
           blob,
@@ -125,15 +123,22 @@ export function useFiles() {
     [actor],
   );
 
+  // Uses explicit setFilePublic for reliable persistence.
+  // Returns the confirmed new isPublic value.
   const toggleShare = useCallback(
-    async (id: string) => {
-      if (!actor) return;
-      await actor.toggleFilePublic(id);
+    async (id: string): Promise<boolean> => {
+      if (!actor) throw new Error("Not connected");
+      const file = files.find((f) => f.id === id);
+      if (!file) throw new Error("File not found");
+      const newPublic = !file.isPublic;
+      const errMsg = await actor.setFilePublic(id, newPublic);
+      if (errMsg) throw new Error(errMsg);
       setFiles((prev) =>
-        prev.map((f) => (f.id === id ? { ...f, isPublic: !f.isPublic } : f)),
+        prev.map((f) => (f.id === id ? { ...f, isPublic: newPublic } : f)),
       );
+      return newPublic;
     },
-    [actor],
+    [actor, files],
   );
 
   const createFolder = useCallback(

@@ -107,6 +107,7 @@ export const idlService = IDL.Service({
   'renameFile' : IDL.Func([FileId, IDL.Text], [], []),
   'renameFolder' : IDL.Func([IDL.Text, IDL.Text], [], []),
   'searchFilesByTag' : IDL.Func([IDL.Text], [IDL.Vec(MediaFile)], ['query']),
+  'setFilePublic' : IDL.Func([FileId, IDL.Bool], [IDL.Text], []),
   'toggleFilePublic' : IDL.Func([FileId], [], []),
   'updateFileTags' : IDL.Func([FileId, IDL.Vec(IDL.Text)], [], []),
 });
@@ -217,7 +218,8 @@ export const idlFactory = ({ IDL }) => {
     'renameFile' : IDL.Func([FileId, IDL.Text], [], []),
     'renameFolder' : IDL.Func([IDL.Text, IDL.Text], [], []),
     'searchFilesByTag' : IDL.Func([IDL.Text], [IDL.Vec(MediaFile)], ['query']),
-    'toggleFilePublic' : IDL.Func([FileId], [], []),
+    'setFilePublic' : IDL.Func([FileId, IDL.Bool], [IDL.Text], []),
+  'toggleFilePublic' : IDL.Func([FileId], [], []),
     'updateFileTags' : IDL.Func([FileId, IDL.Vec(IDL.Text)], [], []),
   });
 };

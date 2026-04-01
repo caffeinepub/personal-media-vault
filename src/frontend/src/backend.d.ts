@@ -35,31 +35,26 @@ export interface MediaFolder {
 }
 export type FileId = string;
 export type FolderId = string;
-export enum UserRole {
-    admin = "admin",
-    user = "user",
-    guest = "guest"
-}
 export interface backendInterface {
-    assignCallerUserRole(user: Principal, role: UserRole): Promise<void>;
     claimAdminWithIdentity(): Promise<boolean>;
+    isCallerAdmin(): Promise<boolean>;
     createFileRecord(id: FileId, name: string, size: bigint, mimeType: string, folderId: FolderId | null, tags: Array<string>, blob: ExternalBlob, description: string | null): Promise<void>;
-    createFolder(id: string, name: string, parentId: string | null): Promise<void>;
     deleteFile(id: FileId): Promise<void>;
+    renameFile(id: FileId, newName: string): Promise<void>;
+    moveFileToFolder(fileId: FileId, folderId: FolderId | null): Promise<void>;
+    updateFileTags(id: FileId, newTags: Array<string>): Promise<void>;
+    /** Explicitly sets isPublic. Returns empty string on success, error message on failure. */
+    setFilePublic(id: FileId, isPublic: boolean): Promise<string>;
+    toggleFilePublic(id: FileId): Promise<void>;
+    createFolder(id: string, name: string, parentId: string | null): Promise<void>;
+    renameFolder(id: string, newName: string): Promise<void>;
     deleteFolder(id: string): Promise<void>;
-    getCallerUserRole(): Promise<UserRole>;
     getFileById(id: FileId): Promise<MediaFile | null>;
+    getFolderById(id: string): Promise<MediaFolder | null>;
+    listAllFiles(): Promise<Array<MediaFile>>;
     getFilesByFolder(folderId: string): Promise<Array<MediaFile>>;
     getFilesByMimeType(mimeTypePrefix: string): Promise<Array<MediaFile>>;
-    getFolderById(id: string): Promise<MediaFolder | null>;
-    getPublicFiles(): Promise<Array<MediaFile>>;
-    isCallerAdmin(): Promise<boolean>;
-    listAllFiles(): Promise<Array<MediaFile>>;
-    listAllFolders(): Promise<Array<MediaFolder>>;
-    moveFileToFolder(fileId: FileId, folderId: FolderId | null): Promise<void>;
-    renameFile(id: FileId, newName: string): Promise<void>;
-    renameFolder(id: string, newName: string): Promise<void>;
     searchFilesByTag(tag: string): Promise<Array<MediaFile>>;
-    toggleFilePublic(id: FileId): Promise<void>;
-    updateFileTags(id: FileId, newTags: Array<string>): Promise<void>;
+    getPublicFiles(): Promise<Array<MediaFile>>;
+    listAllFolders(): Promise<Array<MediaFolder>>;
 }

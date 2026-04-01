@@ -152,6 +152,7 @@ export interface backendInterface {
     renameFile(id: FileId, newName: string): Promise<void>;
     renameFolder(id: string, newName: string): Promise<void>;
     searchFilesByTag(tag: string): Promise<Array<MediaFile>>;
+    setFilePublic(id: FileId, isPublic: boolean): Promise<string>;
     toggleFilePublic(id: FileId): Promise<void>;
     updateFileTags(id: FileId, newTags: Array<string>): Promise<void>;
     claimAdminWithIdentity(): Promise<boolean>;
@@ -507,6 +508,20 @@ export class Backend implements backendInterface {
         } else {
             const result = await this.actor.searchFilesByTag(arg0);
             return from_candid_vec_n21(this._uploadFile, this._downloadFile, result);
+        }
+    }
+    async setFilePublic(arg0: FileId, arg1: boolean): Promise<string> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.setFilePublic(arg0, arg1);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.setFilePublic(arg0, arg1);
+            return result;
         }
     }
     async toggleFilePublic(arg0: FileId): Promise<void> {

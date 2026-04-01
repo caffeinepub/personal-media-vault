@@ -94,6 +94,7 @@ export interface _SERVICE {
   'renameFile' : ActorMethod<[FileId, string], undefined>,
   'renameFolder' : ActorMethod<[string, string], undefined>,
   'searchFilesByTag' : ActorMethod<[string], Array<MediaFile>>,
+  'setFilePublic' : ActorMethod<[FileId, boolean], string>,
   'toggleFilePublic' : ActorMethod<[FileId], undefined>,
   'updateFileTags' : ActorMethod<[FileId, Array<string>], undefined>,
 }

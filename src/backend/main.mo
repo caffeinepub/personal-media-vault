@@ -1,11 +1,7 @@
-import Iter "mo:core/Iter";
-import Array "mo:core/Array";
 import Map "mo:core/Map";
 import Time "mo:core/Time";
 import Text "mo:core/Text";
-import Option "mo:core/Option";
 import Order "mo:core/Order";
-import List "mo:core/List";
 import Runtime "mo:core/Runtime";
 import Principal "mo:core/Principal";
 import AccessControl "authorization/access-control";
@@ -14,19 +10,15 @@ import Storage "blob-storage/Storage";
 
 actor {
   // COMPONENTS
-
-  // Blob storage
   include MixinStorage();
 
-  // Stable variable preserved from previous deployment - do not remove.
-  let ADMIN_RECOVERY_TOKEN : Text = "vault-admin-2026";
-
-  // Stable variable preserved from previous deployment - do not remove.
-  let accessControlState = AccessControl.initState();
+  // Stable variables preserved from previous deployment for upgrade compatibility.
+  // DO NOT REMOVE -- removing stable vars requires an explicit migration function.
+  stable var ADMIN_RECOVERY_TOKEN : Text = "vault-admin-2026";
+  stable var accessControlState = AccessControl.initState();
 
   // Custom Data & Functions
 
-  // Media types
   type FileId = Text;
   type FolderId = Text;
   type Timestamp = Int;
@@ -158,6 +150,21 @@ actor {
     files.add(id, updatedFile);
   };
 
+  // Explicitly set a file's public/private status.
+  // Returns empty string on success, error message on failure.
+  public shared ({ caller }) func setFilePublic(id : FileId, isPublic : Bool) : async Text {
+    if (not isAdminCaller(caller)) {
+      return "Unauthorized: Only admins can change file visibility";
+    };
+    let file = switch (files.get(id)) {
+      case (?f) { f };
+      case null { return "File does not exist" };
+    };
+    let updatedFile = { file with isPublic };
+    files.add(id, updatedFile);
+    return "";
+  };
+
   public shared ({ caller }) func toggleFilePublic(id : FileId) : async () {
     if (not isAdminCaller(caller)) {
       Runtime.trap("Unauthorized: Only admins can toggle file visibility");
@@ -205,24 +212,26 @@ actor {
       Runtime.trap("Folder does not exist");
     };
     folders.remove(id);
-    let filesToUpdate = List.empty<(FileId, MediaFile)>();
+    // Move files in this folder to root
+    let toUpdate = Map.empty<FileId, MediaFile>();
     for ((fileId, file) in files.entries()) {
       switch (file.folderId) {
-        case (?folderId) {
-          if (folderId == id) {
-            filesToUpdate.add((fileId, { file with folderId = null }));
+        case (?fId) {
+          if (fId == id) {
+            toUpdate.add(fileId, { file with folderId = null });
           };
         };
         case (_) {};
       };
     };
-    for ((fileId, updatedFile) in filesToUpdate.values()) {
+    for ((fileId, updatedFile) in toUpdate.entries()) {
       files.add(fileId, updatedFile);
     };
   };
 
   // PUBLIC QUERIES
 
+  // Returns file if: caller is admin, OR file.isPublic is true
   public query ({ caller }) func getFileById(id : FileId) : async ?MediaFile {
     switch (files.get(id)) {
       case (?file) {

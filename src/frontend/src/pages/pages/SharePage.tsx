@@ -75,24 +75,17 @@ export default function SharePage() {
 
   useEffect(() => {
     if (!actor) return;
-    // getFileById returns the file only if:
-    //   - the file is public (for anonymous visitors), OR
-    //   - the caller is admin
-    // Trust the backend for access control; do NOT double-check isPublic here.
     actor
       .getFileById(fileId)
       .then((f) => {
-        if (!f) {
+        if (!f || !f.isPublic) {
           setNotFound(true);
         } else {
           setFile(f);
           setMetaTags(f);
         }
       })
-      .catch((err) => {
-        console.error("Share page: getFileById failed", err);
-        setNotFound(true);
-      })
+      .catch(() => setNotFound(true))
       .finally(() => setLoading(false));
   }, [actor, fileId]);
 

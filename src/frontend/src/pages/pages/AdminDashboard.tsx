@@ -85,7 +85,8 @@ export default function AdminDashboard() {
     let cancelled = false;
     (async () => {
       try {
-        await actor.claimAdminWithIdentity();
+        // Try to claim admin (succeeds first time, returns true if already this principal)
+        await (actor as any).claimAdminWithIdentity();
       } catch {
         // Ignore claim errors - check admin status regardless
       }
@@ -199,14 +200,10 @@ export default function AdminDashboard() {
 
   const handleToggleShare = async (file: MediaFile) => {
     try {
-      const newPublic = await fileOps.toggleShare(file.id);
-      toast.success(newPublic ? "File shared publicly" : "File made private");
-      // If the preview is open for this file, update it with the latest data
-      if (previewFile?.id === file.id) {
-        setPreviewFile((prev) =>
-          prev ? { ...prev, isPublic: newPublic } : prev,
-        );
-      }
+      await fileOps.toggleShare(file.id);
+      toast.success(
+        file.isPublic ? "File made private" : "File shared publicly",
+      );
     } catch (err) {
       toast.error(`Failed to toggle sharing: ${String(err)}`);
     }
@@ -431,20 +428,20 @@ export default function AdminDashboard() {
               className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 p-4"
             >
               {[
-                "s1",
-                "s2",
-                "s3",
-                "s4",
-                "s5",
-                "s6",
-                "s7",
-                "s8",
-                "s9",
-                "s10",
-                "s11",
-                "s12",
-              ].map((k) => (
-                <Skeleton key={k} className="aspect-square rounded-lg" />
+                "1",
+                "2",
+                "3",
+                "4",
+                "5",
+                "6",
+                "7",
+                "8",
+                "9",
+                "10",
+                "11",
+                "12",
+              ].map((id) => (
+                <Skeleton key={id} className="aspect-square rounded-lg" />
               ))}
             </div>
           ) : (
@@ -683,7 +680,7 @@ export default function AdminDashboard() {
       </Dialog>
 
       <footer className="text-center py-3 text-xs text-muted-foreground border-t border-border shrink-0">
-        © {new Date().getFullYear()}. Built with love using{" "}
+        © {new Date().getFullYear()}. Built with ❤️ using{" "}
         <a
           href={`https://caffeine.ai?utm_source=caffeine-footer&utm_medium=referral&utm_content=${encodeURIComponent(window.location.hostname)}`}
           target="_blank"

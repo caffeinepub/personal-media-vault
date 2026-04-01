@@ -1,35 +1,45 @@
 # Personal Media Vault
 
 ## Current State
-- Share URLs are `/share/:fileId` with no file extension
-- Files are uploaded to blob storage with `Content-Type: application/octet-stream` hardcoded in StorageClient.ts, regardless of actual file type
-- `useActor.ts` still calls `_initializeAccessControlWithSecret` on every actor creation, breaking admin access
-- `getDirectURL()` returns a bare blob URL with no filename/extension in the path
+Workspace is empty -- full rebuild from conversation history.
 
 ## Requested Changes (Diff)
 
 ### Add
-- `src/frontend/src/utils/blobMetadata.ts`: WeakMap-based registry to associate MIME type and filename with ExternalBlob instances before upload
-- Second TanStack Router route `/share/$fileId/$filename` that renders the same SharePage
+- Full Personal Media Vault app with all previously established features (see Implementation Plan)
+- Share page correctly reads `isPublic` flag from backend and displays file if public
+- Admin is permanently linked to Internet Identity on first login (stable storage, survives upgrades)
 
 ### Modify
-- `StorageClient.ts`: `putFile(blobBytes, onProgress?, mimeType?)` -- use actual mimeType in fileHeaders instead of `application/octet-stream`; `getDirectURL(hash, filename?)` -- when filename provided, insert it as path segment `/v1/blob/<filename>?blob_hash=...` so URL ends with the extension
-- `config.ts`: pass mimeType from `getBlobMimeType(file)` to `storageClient.putFile()`; in `downloadFile` pass filename from `getBlobFilename()` to `storageClient.getDirectURL()`
-- `useFiles.ts`: after `ExternalBlob.fromBytes(bytes)`, call `setBlobMimeType(blob, file.type)` and `setBlobFilename(blob, file.name)`
-- `App.tsx`: add `/share/$fileId/$filename` route using same SharePage component; update routeTree
-- `MediaPreview.tsx`: change share URL from `/share/${file.id}` to `/share/${file.id}/${encodeURIComponent(file.name)}`
-- `SharePage.tsx`: use `useParams({ strict: false })` to handle both route forms; update OG tag URLs to use the blob URL which now includes filename/extension in path
-- `useActor.ts`: remove the `_initializeAccessControlWithSecret(adminToken)` call entirely
+- Share toggle must actually persist `isPublic` flag in backend stable storage
+- All backend share lookup functions must check the persisted `isPublic` field correctly
 
 ### Remove
-- `_initializeAccessControlWithSecret` call from `useActor.ts`
+- ALL token-based admin flows: `CAFFEINE_ADMIN_TOKEN`, `caffeineAdminToken`, `_initializeAccessControlWithSecret`, `forceClaimAdmin`
+- "Claim Admin Access" button and all related UI
+- Any URL fragment or query param related to admin tokens
 
 ## Implementation Plan
-1. Create `blobMetadata.ts` with WeakMap registry for mimeType and filename
-2. Modify `StorageClient.ts` to accept and use mimeType in putFile, and filename in getDirectURL (insert as path segment before query string)
-3. Modify `config.ts` to use blobMetadata when uploading and downloading
-4. Modify `useFiles.ts` to register mimeType and filename on blob before upload
-5. Modify `App.tsx` to add the `/share/$fileId/$filename` route
-6. Modify `MediaPreview.tsx` to include filename in share URL
-7. Modify `SharePage.tsx` to use strict:false params and handle both route forms
-8. Fix `useActor.ts` by removing `_initializeAccessControlWithSecret` call
+
+1. **Backend (Motoko)**
+   - Stable var `adminPrincipal: ?Principal` -- set on first login, never reset
+   - `claimAdminWithIdentity()`: sets adminPrincipal if not yet set, returns ok/err
+   - `isAdmin(caller)`: returns true if caller == adminPrincipal, never traps
+   - File metadata stored in stable HashMap: `fileId -> FileRecord { name, mimeType, blobHash, folderId, tags, isPublic, uploadedAt }`
+   - `setFilePublic(fileId, isPublic)`: admin-only, updates isPublic in stable map, returns ok/err
+   - `getPublicFile(fileId)`: returns file record if isPublic == true, else returns null
+   - `listFiles(folderId?)`: admin-only, returns all files
+   - `createFolder`, `listFolders`, `deleteFolder`
+   - `deleteFile(fileId)`: admin-only, removes from stable map
+   - Uses blob-storage for actual file data
+   - Uses authorization component for role management
+
+2. **Frontend**
+   - Login page: Internet Identity sign-in only; on first login silently calls `claimAdminWithIdentity` and redirects to dashboard -- NO claim button, NO token UI
+   - Dashboard: sidebar folder tree, file grid/list view, drag-and-drop upload with progress
+   - File grid: thumbnails for images, icons for other types, file name, type badge
+   - File detail dialog: preview (image/video/audio/PDF/3D GLB), share toggle, delete, download
+   - Share toggle: calls `setFilePublic` and uses the returned result to confirm success -- no optimistic update
+   - Blob URLs: always include filename+extension e.g. `/v1/blob/my-video.mp4?blob_hash=...`
+   - Share page `/share/:fileId/:filename`: calls `getPublicFile`, renders preview + Open Graph meta tags
+   - No admin token anywhere in URLs, state, or localStorage
