@@ -52,7 +52,6 @@ export default function AdminDashboard() {
 
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
   const [checkingAdmin, setCheckingAdmin] = useState(false);
-  const [tokenInput, setTokenInput] = useState("");
   const [claimingAdmin, setClaimingAdmin] = useState(false);
 
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
@@ -102,18 +101,18 @@ export default function AdminDashboard() {
   }, [isAdmin, actor, loadFiles]);
 
   const handleClaimAdmin = async () => {
-    if (!actor || !tokenInput.trim()) return;
+    if (!actor) return;
     setClaimingAdmin(true);
     try {
-      const success = (await (actor as any).forceClaimAdmin(
-        tokenInput.trim(),
-      )) as boolean;
+      const success = (await (
+        actor as any
+      ).claimAdminWithIdentity()) as boolean;
       if (success) {
         setIsAdmin(true);
         toast.success("Admin access granted!");
       } else {
         toast.error(
-          "Invalid token. Check your admin token in the Caffeine dashboard.",
+          "Failed to claim admin. This identity may not be authorized.",
         );
       }
     } catch (err) {
@@ -311,26 +310,14 @@ export default function AdminDashboard() {
           <div className="space-y-2">
             <h1 className="text-2xl font-semibold">Admin Recovery</h1>
             <p className="text-muted-foreground text-sm">
-              Enter your admin token to reclaim access to your media vault.
+              You are signed in with Internet Identity. Click below to claim
+              admin access.
             </p>
-          </div>
-          <div className="space-y-3 text-left">
-            <Label htmlFor="admin-token">Admin Token</Label>
-            <Input
-              data-ocid="recovery.input"
-              id="admin-token"
-              type="password"
-              placeholder="Paste your admin token here"
-              value={tokenInput}
-              onChange={(e) => setTokenInput(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleClaimAdmin()}
-              className="bg-secondary border-border"
-            />
           </div>
           <Button
             data-ocid="recovery.primary_button"
             onClick={handleClaimAdmin}
-            disabled={claimingAdmin || !tokenInput.trim()}
+            disabled={claimingAdmin}
             className="w-full gap-2"
             size="lg"
           >

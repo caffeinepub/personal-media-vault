@@ -42,11 +42,11 @@ export enum UserRole {
 }
 export interface backendInterface {
     assignCallerUserRole(user: Principal, role: UserRole): Promise<void>;
+    claimAdminWithIdentity(): Promise<boolean>;
     createFileRecord(id: FileId, name: string, size: bigint, mimeType: string, folderId: FolderId | null, tags: Array<string>, blob: ExternalBlob, description: string | null): Promise<void>;
     createFolder(id: string, name: string, parentId: string | null): Promise<void>;
     deleteFile(id: FileId): Promise<void>;
     deleteFolder(id: string): Promise<void>;
-    forceClaimAdmin(secret: string): Promise<boolean>;
     getCallerUserRole(): Promise<UserRole>;
     getFileById(id: FileId): Promise<MediaFile | null>;
     getFilesByFolder(folderId: string): Promise<Array<MediaFile>>;

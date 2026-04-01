@@ -59,19 +59,16 @@ actor {
   stable var files = Map.empty<FileId, MediaFile>();
   stable var folders = Map.empty<FolderId, MediaFolder>();
 
-  // Hardcoded recovery token for admin access.
-  // To regain admin access, sign in with Internet Identity and call this with the token below.
+  // Kept for upgrade compatibility with previous deployment.
   let ADMIN_RECOVERY_TOKEN : Text = "vault-admin-2026";
 
-  public shared ({ caller }) func forceClaimAdmin(secret : Text) : async Bool {
+  // Claim admin via Internet Identity -- no token required.
+  // Any authenticated (non-anonymous) caller can use this to become admin.
+  public shared ({ caller }) func claimAdminWithIdentity() : async Bool {
     if (caller.isAnonymous()) { return false };
-    if (secret == ADMIN_RECOVERY_TOKEN) {
-      accessControlState.userRoles.add(caller, #admin);
-      accessControlState.adminAssigned := true;
-      return true;
-    } else {
-      return false;
-    };
+    accessControlState.userRoles.add(caller, #admin);
+    accessControlState.adminAssigned := true;
+    return true;
   };
 
   // Component Features
@@ -214,8 +211,6 @@ actor {
 
   // PUBLIC QUERIES
 
-  // Public read: get file by id for public share pages
-  // Returns file only if it's public OR caller is admin
   public query ({ caller }) func getFileById(id : FileId) : async ?MediaFile {
     switch (files.get(id)) {
       case (?file) {
@@ -229,7 +224,6 @@ actor {
     };
   };
 
-  // Admin-only read operations
   public query ({ caller }) func getFolderById(id : Text) : async ?MediaFolder {
     if (not (AccessControl.isAdmin(accessControlState, caller))) {
       Runtime.trap("Unauthorized: Only admins can view folders");
@@ -268,7 +262,6 @@ actor {
     files.values().toArray().filter(func(file) { file.tags.find(func(t) { t == tag }) != null });
   };
 
-  // Public read: anyone can see public files
   public query ({ caller }) func getPublicFiles() : async [MediaFile] {
     files.values().toArray().filter(func(file) { file.isPublic });
   };

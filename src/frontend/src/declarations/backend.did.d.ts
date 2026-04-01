@@ -64,6 +64,7 @@ export interface _SERVICE {
   '_caffeineStorageUpdateGatewayPrincipals' : ActorMethod<[], undefined>,
   '_initializeAccessControlWithSecret' : ActorMethod<[string], undefined>,
   'assignCallerUserRole' : ActorMethod<[Principal, UserRole], undefined>,
+  'claimAdminWithIdentity' : ActorMethod<[], boolean>,
   'createFileRecord' : ActorMethod<
     [
       FileId,
@@ -95,7 +96,6 @@ export interface _SERVICE {
   'searchFilesByTag' : ActorMethod<[string], Array<MediaFile>>,
   'toggleFilePublic' : ActorMethod<[FileId], undefined>,
   'updateFileTags' : ActorMethod<[FileId, Array<string>], undefined>,
-  'forceClaimAdmin' : ActorMethod<[string], boolean>,
 }
 export declare const idlService: IDL.ServiceClass;
 export declare const idlInitArgs: IDL.Type[];
