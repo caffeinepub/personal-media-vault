@@ -61,11 +61,7 @@ module {
     };
   };
 
-  // Safe check that never traps -- returns false if user is not registered.
   public func isAdmin(state : AccessControlState, caller : Principal) : Bool {
-    switch (state.userRoles.get(caller)) {
-      case (?(#admin)) { true };
-      case (_) { false };
-    };
+    getUserRole(state, caller) == #admin;
   };
 };
