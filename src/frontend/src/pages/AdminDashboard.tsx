@@ -30,7 +30,6 @@ import { getEffectiveCategory } from "@/lib/mediaUtils";
 import {
   FolderPlus,
   HardDrive,
-  KeyRound,
   LayoutGrid,
   List,
   Loader2,
@@ -51,8 +50,7 @@ export default function AdminDashboard() {
   const fileOps = useFiles();
 
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
-  const [checkingAdmin, setCheckingAdmin] = useState(false);
-  const [claimingAdmin, setClaimingAdmin] = useState(false);
+  const [adminSetupDone, setAdminSetupDone] = useState(false);
 
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [searchQuery, setSearchQuery] = useState("");
@@ -81,16 +79,30 @@ export default function AdminDashboard() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<MediaFile | null>(null);
 
-  // Check admin status
+  // Auto-claim admin on first authenticated login, then check status
   useEffect(() => {
-    if (!actor || !isAuthenticated) return;
-    setCheckingAdmin(true);
-    actor
-      .isCallerAdmin()
-      .then((admin) => setIsAdmin(admin))
-      .catch(() => setIsAdmin(false))
-      .finally(() => setCheckingAdmin(false));
-  }, [actor, isAuthenticated]);
+    if (!actor || !isAuthenticated || adminSetupDone) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        // Try to claim admin (succeeds first time, returns true if already this principal)
+        await (actor as any).claimAdminWithIdentity();
+      } catch {
+        // Ignore claim errors - check admin status regardless
+      }
+      if (cancelled) return;
+      try {
+        const admin = await actor.isCallerAdmin();
+        if (!cancelled) setIsAdmin(admin);
+      } catch {
+        if (!cancelled) setIsAdmin(false);
+      }
+      if (!cancelled) setAdminSetupDone(true);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [actor, isAuthenticated, adminSetupDone]);
 
   // Load files when admin
   const loadFiles = fileOps.loadFiles;
@@ -99,28 +111,6 @@ export default function AdminDashboard() {
       loadFiles();
     }
   }, [isAdmin, actor, loadFiles]);
-
-  const handleClaimAdmin = async () => {
-    if (!actor) return;
-    setClaimingAdmin(true);
-    try {
-      const success = (await (
-        actor as any
-      ).claimAdminWithIdentity()) as boolean;
-      if (success) {
-        setIsAdmin(true);
-        toast.success("Admin access granted!");
-      } else {
-        toast.error(
-          "Failed to claim admin. This identity may not be authorized.",
-        );
-      }
-    } catch (err) {
-      toast.error(`Failed to claim admin: ${String(err)}`);
-    } finally {
-      setClaimingAdmin(false);
-    }
-  };
 
   const handleFiles = useCallback(
     async (files: File[]) => {
@@ -292,10 +282,14 @@ export default function AdminDashboard() {
     );
   }
 
-  if (checkingAdmin) {
+  // Show spinner while setting up admin (auto-claiming + checking)
+  if (!adminSetupDone || isAdmin === null) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <div className="space-y-3 text-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
+          <p className="text-muted-foreground text-sm">Connecting...</p>
+        </div>
       </div>
     );
   }
@@ -303,38 +297,12 @@ export default function AdminDashboard() {
   if (!isAdmin) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center space-y-6 max-w-sm px-4">
-          <div className="h-16 w-16 rounded-2xl bg-primary/20 border border-primary/30 flex items-center justify-center mx-auto">
-            <KeyRound className="h-8 w-8 text-primary" />
-          </div>
-          <div className="space-y-2">
-            <h1 className="text-2xl font-semibold">Admin Recovery</h1>
-            <p className="text-muted-foreground text-sm">
-              You are signed in with Internet Identity. Click below to claim
-              admin access.
-            </p>
-          </div>
-          <Button
-            data-ocid="recovery.primary_button"
-            onClick={handleClaimAdmin}
-            disabled={claimingAdmin}
-            className="w-full gap-2"
-            size="lg"
-          >
-            {claimingAdmin ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <KeyRound className="h-4 w-4" />
-            )}
-            Claim Admin Access
-          </Button>
-          <Button
-            data-ocid="recovery.secondary_button"
-            variant="ghost"
-            size="sm"
-            onClick={logout}
-            className="text-muted-foreground"
-          >
+        <div className="text-center space-y-4 max-w-sm px-4">
+          <p className="text-muted-foreground text-sm">
+            This vault is already claimed by another identity. Sign in with the
+            correct Internet Identity to access it.
+          </p>
+          <Button variant="ghost" size="sm" onClick={logout}>
             Sign out
           </Button>
         </div>

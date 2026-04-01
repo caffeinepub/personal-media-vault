@@ -13,6 +13,7 @@ import type { MediaFile } from "@/hooks/useFiles";
 import {
   formatDate,
   formatFileSize,
+  getBlobUrlWithFilename,
   getEffectiveCategory,
   isGLTFFile,
 } from "@/lib/mediaUtils";
@@ -59,7 +60,7 @@ export function MediaPreview({
   if (!file) return null;
 
   const cat = getEffectiveCategory(file.mimeType, file.name);
-  const url = file.blob.getDirectURL();
+  const url = getBlobUrlWithFilename(file.blob.getDirectURL(), file.name);
   const shareUrl = `${window.location.origin}/share/${file.id}/${encodeURIComponent(file.name)}`;
 
   const handleCopy = async () => {

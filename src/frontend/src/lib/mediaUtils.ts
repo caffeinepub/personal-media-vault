@@ -140,3 +140,21 @@ export function isGLTFFile(name: string): boolean {
   const ext = name.split(".").pop()?.toLowerCase() ?? "";
   return ext === "glb" || ext === "gltf";
 }
+
+export function getBlobUrlWithFilename(
+  blobUrl: string,
+  filename: string,
+): string {
+  try {
+    const url = new URL(blobUrl);
+    const pathParts = url.pathname.split("/").filter(Boolean);
+    const blobIndex = pathParts.lastIndexOf("blob");
+    if (blobIndex !== -1) {
+      pathParts.splice(blobIndex + 1, 0, encodeURIComponent(filename));
+    }
+    url.pathname = `/${pathParts.join("/")}`;
+    return url.toString();
+  } catch {
+    return blobUrl;
+  }
+}

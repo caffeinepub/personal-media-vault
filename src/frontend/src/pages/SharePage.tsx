@@ -6,6 +6,7 @@ import { useActor } from "@/hooks/useActor";
 import {
   formatDate,
   formatFileSize,
+  getBlobUrlWithFilename,
   getEffectiveCategory,
   isGLTFFile,
 } from "@/lib/mediaUtils";
@@ -19,21 +20,6 @@ const ThreeDViewer = lazy(() =>
     default: m.ThreeDViewer,
   })),
 );
-
-function getBlobUrlWithFilename(blobUrl: string, filename: string): string {
-  try {
-    const url = new URL(blobUrl);
-    const pathParts = url.pathname.split("/").filter(Boolean);
-    const blobIndex = pathParts.lastIndexOf("blob");
-    if (blobIndex !== -1) {
-      pathParts.splice(blobIndex + 1, 0, encodeURIComponent(filename));
-    }
-    url.pathname = `/${pathParts.join("/")}`;
-    return url.toString();
-  } catch {
-    return blobUrl;
-  }
-}
 
 function setMetaTags(file: MediaFile) {
   const rawUrl = file.blob.getDirectURL();

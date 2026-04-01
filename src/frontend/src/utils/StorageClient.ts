@@ -498,20 +498,18 @@ export class StorageClient {
   public async putFile(
     blobBytes: Uint8Array,
     onProgress?: (percentage: number) => void,
-    mimeType?: string,
   ): Promise<{ hash: string }> {
-    const resolvedMimeType = mimeType ?? "application/octet-stream";
     // HTTP headers for fetch requests (used for the PUT request to gateway)
     const httpHeaders: Headers = {
       "Content-Type": "application/json",
     };
     // Create a Blob from the bytes
     const file = new Blob([new Uint8Array(blobBytes)], {
-      type: resolvedMimeType,
+      type: "application/octet-stream",
     });
     // File metadata headers that will be stored with the blob tree
     const fileHeaders: Headers = {
-      "Content-Type": resolvedMimeType,
+      "Content-Type": "application/octet-stream",
       "Content-Length": file.size.toString(),
     };
 
@@ -540,17 +538,12 @@ export class StorageClient {
     return { hash: hashString };
   }
 
-  public async getDirectURL(hash: string, filename?: string): Promise<string> {
+  public async getDirectURL(hash: string): Promise<string> {
     if (!hash) {
       throw new Error("Hash must not be empty");
     }
     validateHashFormat(hash, `getDirectURL for path '${hash}'`);
-    const base = this.storageGatewayClient.getStorageGatewayUrl();
-    const queryString = `blob_hash=${encodeURIComponent(hash)}&owner_id=${encodeURIComponent(this.backendCanisterId)}&project_id=${encodeURIComponent(this.projectId)}`;
-    if (filename) {
-      return `${base}/${GATEWAY_VERSION}/blob/${encodeURIComponent(filename)}?${queryString}`;
-    }
-    return `${base}/${GATEWAY_VERSION}/blob/?${queryString}`;
+    return `${this.storageGatewayClient.getStorageGatewayUrl()}/${GATEWAY_VERSION}/blob/?blob_hash=${encodeURIComponent(hash)}&owner_id=${encodeURIComponent(this.backendCanisterId)}&project_id=${encodeURIComponent(this.projectId)}`;
   }
 
   private async processFileForUpload(

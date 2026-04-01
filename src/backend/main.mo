@@ -8,20 +8,21 @@ import Order "mo:core/Order";
 import List "mo:core/List";
 import Runtime "mo:core/Runtime";
 import Principal "mo:core/Principal";
-import MixinAuthorization "authorization/MixinAuthorization";
 import AccessControl "authorization/access-control";
 import MixinStorage "blob-storage/Mixin";
 import Storage "blob-storage/Storage";
 
 actor {
   // COMPONENTS
-  
-  // Authorization
-  let accessControlState = AccessControl.initState();
-  include MixinAuthorization(accessControlState);
 
   // Blob storage
   include MixinStorage();
+
+  // Stable variable preserved from previous deployment - do not remove.
+  let ADMIN_RECOVERY_TOKEN : Text = "vault-admin-2026";
+
+  // Stable variable preserved from previous deployment - do not remove.
+  let accessControlState = AccessControl.initState();
 
   // Custom Data & Functions
 
@@ -59,24 +60,41 @@ actor {
   stable var files = Map.empty<FileId, MediaFile>();
   stable var folders = Map.empty<FolderId, MediaFolder>();
 
-  // Kept for upgrade compatibility with previous deployment.
-  let ADMIN_RECOVERY_TOKEN : Text = "vault-admin-2026";
+  // Stable admin principal - persists across all upgrades.
+  // The first authenticated caller to invoke claimAdminWithIdentity becomes
+  // the permanent admin. This value is never reset by code changes.
+  stable var adminPrincipal : ?Principal = null;
 
-  // Claim admin via Internet Identity -- no token required.
-  // Any authenticated (non-anonymous) caller can use this to become admin.
-  public shared ({ caller }) func claimAdminWithIdentity() : async Bool {
+  func isAdminCaller(caller : Principal) : Bool {
     if (caller.isAnonymous()) { return false };
-    accessControlState.userRoles.add(caller, #admin);
-    accessControlState.adminAssigned := true;
-    return true;
+    switch (adminPrincipal) {
+      case (?p) { p == caller };
+      case null { false };
+    };
   };
 
-  // Component Features
+  // Called automatically on first authenticated login.
+  // First non-anonymous caller becomes admin permanently.
+  // Returns true if this caller is (or just became) admin.
+  public shared ({ caller }) func claimAdminWithIdentity() : async Bool {
+    if (caller.isAnonymous()) { return false };
+    switch (adminPrincipal) {
+      case (?p) { return p == caller };
+      case null {
+        adminPrincipal := ?caller;
+        return true;
+      };
+    };
+  };
+
+  public query ({ caller }) func isCallerAdmin() : async Bool {
+    isAdminCaller(caller);
+  };
 
   // File Operations
 
   public shared ({ caller }) func createFileRecord(id : FileId, name : Text, size : Nat, mimeType : Text, folderId : ?FolderId, tags : [Text], blob : Storage.ExternalBlob, description : ?Text) : async () {
-    if (not (AccessControl.isAdmin(accessControlState, caller))) {
+    if (not isAdminCaller(caller)) {
       Runtime.trap("Unauthorized: Only admins can create files");
     };
     let file : MediaFile = {
@@ -95,7 +113,7 @@ actor {
   };
 
   public shared ({ caller }) func deleteFile(id : FileId) : async () {
-    if (not (AccessControl.isAdmin(accessControlState, caller))) {
+    if (not isAdminCaller(caller)) {
       Runtime.trap("Unauthorized: Only admins can delete files");
     };
     switch (files.get(id)) {
@@ -105,7 +123,7 @@ actor {
   };
 
   public shared ({ caller }) func renameFile(id : FileId, newName : Text) : async () {
-    if (not (AccessControl.isAdmin(accessControlState, caller))) {
+    if (not isAdminCaller(caller)) {
       Runtime.trap("Unauthorized: Only admins can rename files");
     };
     let file = switch (files.get(id)) {
@@ -117,7 +135,7 @@ actor {
   };
 
   public shared ({ caller }) func moveFileToFolder(fileId : FileId, folderId : ?FolderId) : async () {
-    if (not (AccessControl.isAdmin(accessControlState, caller))) {
+    if (not isAdminCaller(caller)) {
       Runtime.trap("Unauthorized: Only admins can move files");
     };
     let file = switch (files.get(fileId)) {
@@ -129,7 +147,7 @@ actor {
   };
 
   public shared ({ caller }) func updateFileTags(id : FileId, newTags : [Text]) : async () {
-    if (not (AccessControl.isAdmin(accessControlState, caller))) {
+    if (not isAdminCaller(caller)) {
       Runtime.trap("Unauthorized: Only admins can update file tags");
     };
     let file = switch (files.get(id)) {
@@ -141,7 +159,7 @@ actor {
   };
 
   public shared ({ caller }) func toggleFilePublic(id : FileId) : async () {
-    if (not (AccessControl.isAdmin(accessControlState, caller))) {
+    if (not isAdminCaller(caller)) {
       Runtime.trap("Unauthorized: Only admins can toggle file visibility");
     };
     let file = switch (files.get(id)) {
@@ -155,10 +173,9 @@ actor {
   // Folder Operations
 
   public shared ({ caller }) func createFolder(id : Text, name : Text, parentId : ?Text) : async () {
-    if (not (AccessControl.isAdmin(accessControlState, caller))) {
+    if (not isAdminCaller(caller)) {
       Runtime.trap("Unauthorized: Only admins can create folders");
     };
-
     let folder : MediaFolder = {
       id;
       name;
@@ -169,7 +186,7 @@ actor {
   };
 
   public shared ({ caller }) func renameFolder(id : Text, newName : Text) : async () {
-    if (not (AccessControl.isAdmin(accessControlState, caller))) {
+    if (not isAdminCaller(caller)) {
       Runtime.trap("Unauthorized: Only admins can rename folders");
     };
     let folder = switch (folders.get(id)) {
@@ -181,18 +198,14 @@ actor {
   };
 
   public shared ({ caller }) func deleteFolder(id : Text) : async () {
-    if (not (AccessControl.isAdmin(accessControlState, caller))) {
+    if (not isAdminCaller(caller)) {
       Runtime.trap("Unauthorized: Only admins can delete folders");
     };
-
     if (not folders.containsKey(id)) {
       Runtime.trap("Folder does not exist");
     };
-
     folders.remove(id);
-
     let filesToUpdate = List.empty<(FileId, MediaFile)>();
-
     for ((fileId, file) in files.entries()) {
       switch (file.folderId) {
         case (?folderId) {
@@ -203,7 +216,6 @@ actor {
         case (_) {};
       };
     };
-
     for ((fileId, updatedFile) in filesToUpdate.values()) {
       files.add(fileId, updatedFile);
     };
@@ -214,7 +226,7 @@ actor {
   public query ({ caller }) func getFileById(id : FileId) : async ?MediaFile {
     switch (files.get(id)) {
       case (?file) {
-        if (file.isPublic or AccessControl.isAdmin(accessControlState, caller)) {
+        if (file.isPublic or isAdminCaller(caller)) {
           ?file;
         } else {
           null;
@@ -225,21 +237,21 @@ actor {
   };
 
   public query ({ caller }) func getFolderById(id : Text) : async ?MediaFolder {
-    if (not (AccessControl.isAdmin(accessControlState, caller))) {
+    if (not isAdminCaller(caller)) {
       Runtime.trap("Unauthorized: Only admins can view folders");
     };
     folders.get(id);
   };
 
   public query ({ caller }) func listAllFiles() : async [MediaFile] {
-    if (not (AccessControl.isAdmin(accessControlState, caller))) {
+    if (not isAdminCaller(caller)) {
       Runtime.trap("Unauthorized: Only admins can list all files");
     };
     files.values().toArray().sort();
   };
 
   public query ({ caller }) func getFilesByFolder(folderId : Text) : async [MediaFile] {
-    if (not (AccessControl.isAdmin(accessControlState, caller))) {
+    if (not isAdminCaller(caller)) {
       Runtime.trap("Unauthorized: Only admins can filter files by folder");
     };
     files.values().toArray().filter(func(file) { switch (file.folderId) {
@@ -249,14 +261,14 @@ actor {
   };
 
   public query ({ caller }) func getFilesByMimeType(mimeTypePrefix : Text) : async [MediaFile] {
-    if (not (AccessControl.isAdmin(accessControlState, caller))) {
+    if (not isAdminCaller(caller)) {
       Runtime.trap("Unauthorized: Only admins can filter files by mime type");
     };
     files.values().toArray().filter(func(file) { file.mimeType.startsWith(#text(mimeTypePrefix)) });
   };
 
   public query ({ caller }) func searchFilesByTag(tag : Text) : async [MediaFile] {
-    if (not (AccessControl.isAdmin(accessControlState, caller))) {
+    if (not isAdminCaller(caller)) {
       Runtime.trap("Unauthorized: Only admins can search files by tag");
     };
     files.values().toArray().filter(func(file) { file.tags.find(func(t) { t == tag }) != null });
@@ -267,7 +279,7 @@ actor {
   };
 
   public query ({ caller }) func listAllFolders() : async [MediaFolder] {
-    if (not (AccessControl.isAdmin(accessControlState, caller))) {
+    if (not isAdminCaller(caller)) {
       Runtime.trap("Unauthorized: Only admins can list all folders");
     };
     folders.values().toArray();

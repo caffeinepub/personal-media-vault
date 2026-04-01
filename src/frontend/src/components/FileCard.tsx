@@ -11,6 +11,7 @@ import type { MediaFile, MediaFolder } from "@/hooks/useFiles";
 import {
   formatDate,
   formatFileSize,
+  getBlobUrlWithFilename,
   getEffectiveCategory,
   getFileCategoryColor,
 } from "@/lib/mediaUtils";
@@ -85,7 +86,7 @@ export function FileCard({
   const cat = getEffectiveCategory(file.mimeType, file.name);
   const isImage = cat === "image";
   const isVideo = cat === "video";
-  const url = file.blob.getDirectURL();
+  const url = getBlobUrlWithFilename(file.blob.getDirectURL(), file.name);
 
   return (
     <article
