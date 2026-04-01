@@ -536,6 +536,20 @@ export class Backend implements backendInterface {
             return result;
         }
     }
+    async forceClaimAdmin(secret: string): Promise<boolean> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.forceClaimAdmin(secret);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.forceClaimAdmin(secret);
+            return result;
+        }
+    }
 }
 async function from_candid_ExternalBlob_n18(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _ExternalBlob): Promise<ExternalBlob> {
     return await _downloadFile(value);

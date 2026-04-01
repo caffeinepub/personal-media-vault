@@ -108,6 +108,7 @@ export const idlService = IDL.Service({
   'searchFilesByTag' : IDL.Func([IDL.Text], [IDL.Vec(MediaFile)], ['query']),
   'toggleFilePublic' : IDL.Func([FileId], [], []),
   'updateFileTags' : IDL.Func([FileId, IDL.Vec(IDL.Text)], [], []),
+  'forceClaimAdmin' : IDL.Func([IDL.Text], [IDL.Bool], []),
 });
 
 export const idlInitArgs = [];
@@ -217,6 +218,7 @@ export const idlFactory = ({ IDL }) => {
     'searchFilesByTag' : IDL.Func([IDL.Text], [IDL.Vec(MediaFile)], ['query']),
     'toggleFilePublic' : IDL.Func([FileId], [], []),
     'updateFileTags' : IDL.Func([FileId, IDL.Vec(IDL.Text)], [], []),
+    'forceClaimAdmin' : IDL.Func([IDL.Text], [IDL.Bool], []),
   });
 };
 
