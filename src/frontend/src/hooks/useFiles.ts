@@ -2,6 +2,7 @@ import { ExternalBlob } from "@/backend";
 import type { MediaFile, MediaFolder } from "@/backend";
 import { useActor } from "@/hooks/useActor";
 import { generateId } from "@/lib/mediaUtils";
+import { setBlobFilename, setBlobMimeType } from "@/utils/blobMetadata";
 import { useCallback, useState } from "react";
 
 export type { MediaFile, MediaFolder };
@@ -54,6 +55,8 @@ export function useFiles() {
         const blob = ExternalBlob.fromBytes(bytes).withUploadProgress((pct) => {
           setUploadProgress((prev) => new Map(prev).set(trackKey, pct));
         });
+        setBlobMimeType(blob, file.type || "application/octet-stream");
+        setBlobFilename(blob, file.name);
         await actor.createFileRecord(
           id,
           file.name,

@@ -30,7 +30,17 @@ const shareRoute = createRoute({
   component: SharePage,
 });
 
-const routeTree = rootRoute.addChildren([indexRoute, shareRoute]);
+const shareWithFilenameRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/share/$fileId/$filename",
+  component: SharePage,
+});
+
+const routeTree = rootRoute.addChildren([
+  indexRoute,
+  shareRoute,
+  shareWithFilenameRoute,
+]);
 
 const router = createRouter({ routeTree });
 

@@ -20,8 +20,24 @@ const ThreeDViewer = lazy(() =>
   })),
 );
 
+function getBlobUrlWithFilename(blobUrl: string, filename: string): string {
+  try {
+    const url = new URL(blobUrl);
+    const pathParts = url.pathname.split("/").filter(Boolean);
+    const blobIndex = pathParts.lastIndexOf("blob");
+    if (blobIndex !== -1) {
+      pathParts.splice(blobIndex + 1, 0, encodeURIComponent(filename));
+    }
+    url.pathname = `/${pathParts.join("/")}`;
+    return url.toString();
+  } catch {
+    return blobUrl;
+  }
+}
+
 function setMetaTags(file: MediaFile) {
-  const url = file.blob.getDirectURL();
+  const rawUrl = file.blob.getDirectURL();
+  const url = getBlobUrlWithFilename(rawUrl, file.name);
   const cat = getEffectiveCategory(file.mimeType, file.name);
   const shareUrl = window.location.href;
 
@@ -65,7 +81,7 @@ function setMetaTags(file: MediaFile) {
 }
 
 export default function SharePage() {
-  const { fileId } = useParams({ from: "/share/$fileId" });
+  const { fileId } = useParams({ strict: false }) as { fileId: string };
   const { actor } = useActor();
   const [file, setFile] = useState<MediaFile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -115,7 +131,8 @@ export default function SharePage() {
   }
 
   const cat = getEffectiveCategory(file.mimeType, file.name);
-  const url = file.blob.getDirectURL();
+  const rawUrl = file.blob.getDirectURL();
+  const url = getBlobUrlWithFilename(rawUrl, file.name);
 
   const handleDownload = () => {
     const a = document.createElement("a");

@@ -60,7 +60,7 @@ export function MediaPreview({
 
   const cat = getEffectiveCategory(file.mimeType, file.name);
   const url = file.blob.getDirectURL();
-  const shareUrl = `${window.location.origin}/share/${file.id}`;
+  const shareUrl = `${window.location.origin}/share/${file.id}/${encodeURIComponent(file.name)}`;
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(shareUrl);

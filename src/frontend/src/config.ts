@@ -5,6 +5,7 @@ import {
   ExternalBlob,
 } from "./backend";
 import { StorageClient } from "./utils/StorageClient";
+import { getBlobMimeType, getBlobFilename } from "./utils/blobMetadata";
 import { HttpAgent } from "@icp-sdk/core/agent";
 
 const DEFAULT_STORAGE_GATEWAY_URL = "https://blob.caffeine.ai";
@@ -156,17 +157,26 @@ export async function createActorWithConfig(
   const MOTOKO_DEDUPLICATION_SENTINEL = "!caf!";
 
   const uploadFile = async (file: ExternalBlob): Promise<Uint8Array> => {
+    const mimeType = getBlobMimeType(file);
+    const filename = getBlobFilename(file);
     const { hash } = await storageClient.putFile(
       await file.getBytes(),
       file.onProgress,
+      mimeType,
     );
-    return new TextEncoder().encode(MOTOKO_DEDUPLICATION_SENTINEL + hash);
+    // Store filename alongside hash so download can reconstruct URL with extension
+    const payload = filename ? `${MOTOKO_DEDUPLICATION_SENTINEL}${hash}|${filename}` : `${MOTOKO_DEDUPLICATION_SENTINEL}${hash}`;
+    return new TextEncoder().encode(payload);
   };
 
   const downloadFile = async (bytes: Uint8Array): Promise<ExternalBlob> => {
     const hashWithPrefix = new TextDecoder().decode(new Uint8Array(bytes));
-    const hash = hashWithPrefix.substring(MOTOKO_DEDUPLICATION_SENTINEL.length);
-    const url = await storageClient.getDirectURL(hash);
+    const withoutSentinel = hashWithPrefix.substring(MOTOKO_DEDUPLICATION_SENTINEL.length);
+    // Support optional filename appended as |filename
+    const pipeIndex = withoutSentinel.indexOf("|");
+    const hash = pipeIndex !== -1 ? withoutSentinel.substring(0, pipeIndex) : withoutSentinel;
+    const filename = pipeIndex !== -1 ? withoutSentinel.substring(pipeIndex + 1) : undefined;
+    const url = await storageClient.getDirectURL(hash, filename);
     return ExternalBlob.fromURL(url);
   };
 

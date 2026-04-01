@@ -154,6 +154,7 @@ export interface backendInterface {
     searchFilesByTag(tag: string): Promise<Array<MediaFile>>;
     toggleFilePublic(id: FileId): Promise<void>;
     updateFileTags(id: FileId, newTags: Array<string>): Promise<void>;
+    claimAdminWithIdentity(): Promise<boolean>;
 }
 import type { ExternalBlob as _ExternalBlob, FileId as _FileId, FolderId as _FolderId, MediaFile as _MediaFile, MediaFolder as _MediaFolder, Timestamp as _Timestamp, UserRole as _UserRole, _CaffeineStorageRefillInformation as __CaffeineStorageRefillInformation, _CaffeineStorageRefillResult as __CaffeineStorageRefillResult } from "./declarations/backend.did.d.ts";
 export class Backend implements backendInterface {
@@ -536,17 +537,17 @@ export class Backend implements backendInterface {
             return result;
         }
     }
-    async forceClaimAdmin(secret: string): Promise<boolean> {
+    async claimAdminWithIdentity(): Promise<boolean> {
         if (this.processError) {
             try {
-                const result = await this.actor.forceClaimAdmin(secret);
+                const result = await this.actor.claimAdminWithIdentity();
                 return result;
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.forceClaimAdmin(secret);
+            const result = await this.actor.claimAdminWithIdentity();
             return result;
         }
     }
