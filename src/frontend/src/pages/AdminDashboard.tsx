@@ -1,4 +1,3 @@
-import { UserRole } from "@/backend";
 import type { MediaFile } from "@/backend";
 import { FileGrid } from "@/components/FileGrid";
 import type { ViewMode } from "@/components/FileGrid";
@@ -31,6 +30,7 @@ import { getEffectiveCategory } from "@/lib/mediaUtils";
 import {
   FolderPlus,
   HardDrive,
+  KeyRound,
   LayoutGrid,
   List,
   Loader2,
@@ -45,20 +45,15 @@ import { toast } from "sonner";
 type SortOption = "name" | "date" | "size" | "type";
 
 export default function AdminDashboard() {
-  const {
-    isAuthenticated,
-    isInitializing,
-    login,
-    logout,
-    isLoggingIn,
-    identity,
-  } = useAuth();
+  const { isAuthenticated, isInitializing, login, logout, isLoggingIn } =
+    useAuth();
   const { actor } = useActor();
   const fileOps = useFiles();
 
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
   const [checkingAdmin, setCheckingAdmin] = useState(false);
-  const [settingAdmin, setSettingAdmin] = useState(false);
+  const [tokenInput, setTokenInput] = useState("");
+  const [claimingAdmin, setClaimingAdmin] = useState(false);
 
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [searchQuery, setSearchQuery] = useState("");
@@ -106,17 +101,25 @@ export default function AdminDashboard() {
     }
   }, [isAdmin, actor, loadFiles]);
 
-  const handleSetupAdmin = async () => {
-    if (!actor || !identity) return;
-    setSettingAdmin(true);
+  const handleClaimAdmin = async () => {
+    if (!actor || !tokenInput.trim()) return;
+    setClaimingAdmin(true);
     try {
-      await actor.assignCallerUserRole(identity.getPrincipal(), UserRole.admin);
-      setIsAdmin(true);
-      toast.success("Admin access granted!");
+      const success = (await (actor as any).forceClaimAdmin(
+        tokenInput.trim(),
+      )) as boolean;
+      if (success) {
+        setIsAdmin(true);
+        toast.success("Admin access granted!");
+      } else {
+        toast.error(
+          "Invalid token. Check your admin token in the Caffeine dashboard.",
+        );
+      }
     } catch (err) {
-      toast.error(`Failed to set up admin: ${String(err)}`);
+      toast.error(`Failed to claim admin: ${String(err)}`);
     } finally {
-      setSettingAdmin(false);
+      setClaimingAdmin(false);
     }
   };
 
@@ -303,26 +306,43 @@ export default function AdminDashboard() {
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center space-y-6 max-w-sm px-4">
           <div className="h-16 w-16 rounded-2xl bg-primary/20 border border-primary/30 flex items-center justify-center mx-auto">
-            <HardDrive className="h-8 w-8 text-primary" />
+            <KeyRound className="h-8 w-8 text-primary" />
           </div>
           <div className="space-y-2">
-            <h1 className="text-2xl font-semibold">First-Time Setup</h1>
+            <h1 className="text-2xl font-semibold">Admin Recovery</h1>
             <p className="text-muted-foreground text-sm">
-              Set yourself as admin to start managing your media vault.
+              Enter your admin token to reclaim access to your media vault.
             </p>
           </div>
+          <div className="space-y-3 text-left">
+            <Label htmlFor="admin-token">Admin Token</Label>
+            <Input
+              data-ocid="recovery.input"
+              id="admin-token"
+              type="password"
+              placeholder="Paste your admin token here"
+              value={tokenInput}
+              onChange={(e) => setTokenInput(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleClaimAdmin()}
+              className="bg-secondary border-border"
+            />
+          </div>
           <Button
-            data-ocid="auth.primary_button"
-            onClick={handleSetupAdmin}
-            disabled={settingAdmin}
+            data-ocid="recovery.primary_button"
+            onClick={handleClaimAdmin}
+            disabled={claimingAdmin || !tokenInput.trim()}
             className="w-full gap-2"
             size="lg"
           >
-            {settingAdmin ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            Set Up Admin Access
+            {claimingAdmin ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <KeyRound className="h-4 w-4" />
+            )}
+            Claim Admin Access
           </Button>
           <Button
-            data-ocid="auth.secondary_button"
+            data-ocid="recovery.secondary_button"
             variant="ghost"
             size="sm"
             onClick={logout}

