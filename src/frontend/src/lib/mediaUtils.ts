@@ -158,3 +158,62 @@ export function getBlobUrlWithFilename(
     return blobUrl;
   }
 }
+
+/**
+ * Maps file extensions to their canonical MIME types.
+ * Falls back to application/octet-stream for unknown extensions.
+ */
+export function getMimeTypeFromFilename(filename: string): string {
+  const ext = filename.split(".").pop()?.toLowerCase() ?? "";
+  const map: Record<string, string> = {
+    // Images
+    jpg: "image/jpeg",
+    jpeg: "image/jpeg",
+    png: "image/png",
+    gif: "image/gif",
+    webp: "image/webp",
+    svg: "image/svg+xml",
+    bmp: "image/bmp",
+    ico: "image/x-icon",
+    avif: "image/avif",
+    tiff: "image/tiff",
+    tif: "image/tiff",
+    // Video
+    mp4: "video/mp4",
+    mov: "video/quicktime",
+    webm: "video/webm",
+    avi: "video/x-msvideo",
+    mkv: "video/x-matroska",
+    m4v: "video/mp4",
+    ogv: "video/ogg",
+    flv: "video/x-flv",
+    wmv: "video/x-ms-wmv",
+    // Audio
+    mp3: "audio/mpeg",
+    wav: "audio/wav",
+    ogg: "audio/ogg",
+    flac: "audio/flac",
+    aac: "audio/aac",
+    m4a: "audio/mp4",
+    opus: "audio/opus",
+    wma: "audio/x-ms-wma",
+    // Docs / 3D / Other
+    pdf: "application/pdf",
+    glb: "model/gltf-binary",
+    gltf: "model/gltf+json",
+    obj: "model/obj",
+    stl: "model/stl",
+    doc: "application/msword",
+    docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    xls: "application/vnd.ms-excel",
+    xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    txt: "text/plain",
+    csv: "text/csv",
+    zip: "application/zip",
+    json: "application/json",
+    xml: "application/xml",
+    html: "text/html",
+    htm: "text/html",
+  };
+  return map[ext] ?? "application/octet-stream";
+}

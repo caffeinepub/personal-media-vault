@@ -1,7 +1,7 @@
 import { ExternalBlob } from "@/backend";
 import type { MediaFile, MediaFolder } from "@/backend";
 import { useActor } from "@/hooks/useActor";
-import { generateId } from "@/lib/mediaUtils";
+import { generateId, getMimeTypeFromFilename } from "@/lib/mediaUtils";
 import { useCallback, useState } from "react";
 
 export type { MediaFile, MediaFolder };
@@ -54,7 +54,10 @@ export function useFiles() {
         const blob = ExternalBlob.fromBytes(bytes).withUploadProgress((pct) => {
           setUploadProgress((prev) => new Map(prev).set(trackKey, pct));
         });
-        const mimeType = file.type || "application/octet-stream";
+        const mimeType =
+          file.type && file.type !== "application/octet-stream"
+            ? file.type
+            : getMimeTypeFromFilename(file.name);
         await actor.createFileRecord(
           id,
           file.name,

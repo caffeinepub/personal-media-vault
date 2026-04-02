@@ -1,50 +1,42 @@
 # Personal Media Vault
 
 ## Current State
-Workspace is empty -- full rebuild from conversation history.
+
+- Full-stack media vault with ICP backend and React frontend
+- Supports images, video, audio, PDF, 3D models (GLB/GLTF)
+- Admin authenticated via Internet Identity
+- Files stored with MIME type; blob URLs include filename/extension via `getBlobUrlWithFilename`
+- Share pages at `/share/:fileId/:filename` with dynamic OG meta tags set by `setMetaTags()`
+- `useActor.ts` STILL contains `_initializeAccessControlWithSecret` + `caffeineAdminToken` calls -- root cause of persistent admin/loading failures
+- `index.html` has no base meta tags -- social crawlers (FB, Twitter) that don't execute JS get nothing
+- MIME detection on upload uses `file.type || "application/octet-stream"` -- no extension fallback
+- Share page has one Download button; no way to copy the raw media URL for inline platform embeds
 
 ## Requested Changes (Diff)
 
 ### Add
-- Full personal cloud storage app with Internet Identity authentication
-- File upload (images, video, audio, PDF, GLB/GLTF) with drag-and-drop and concurrent progress tracking
-- Folder organization with sidebar tree
-- Tags, search, and filter features
-- Grid and list views with thumbnails and file type icons
-- Public share pages at `/share/:fileId/:filename.ext` with Open Graph meta tags
-- Blob URLs include filename and extension: `/v1/blob/filename.ext?blob_hash=...`
-- Files stored with correct MIME type on upload
-- 3D model viewer (Three.js / React Three Fiber) for GLB/GLTF files
-- Admin silently claimed on first Internet Identity login, stored in `stable var adminPrincipal`
+- Comprehensive extension-to-MIME lookup table in `mediaUtils.ts` for fallback MIME detection
+- Base Open Graph and Twitter Card meta tags in `index.html` as static fallback for non-JS crawlers
+- Full platform-specific OG tags in `setMetaTags()`: `og:image:secure_url`, `og:image:width`, `og:image:height`, `og:video:secure_url`, `og:video:width`, `og:video:height`, `og:audio:secure_url`, `og:locale`, `og:site_name`, `twitter:site`, Twitter player card (`twitter:card: player`) for video with `twitter:player` pointing to share URL
+- "Copy media link" button on share page that copies the direct blob URL ending in the file extension (for Discord/Slack inline embed)
+- `getMimeTypeFromFilename(filename)` utility that maps common extensions to MIME types
 
 ### Modify
-- N/A (fresh build)
+- `useActor.ts`: Remove `_initializeAccessControlWithSecret` call and `caffeineAdminToken`/`getSecretParameter` import entirely
+- `useFiles.ts` `uploadFile`: use `getMimeTypeFromFilename` as fallback when `file.type` is empty or `application/octet-stream`
+- `setMetaTags()` in `SharePage.tsx`: expand to include all platform-specific tags listed above
+- `index.html`: add static base OG/Twitter meta tags
 
 ### Remove
-- ALL token-based admin logic: `_initializeAccessControlWithSecret`, `forceClaimAdmin`, `CAFFEINE_ADMIN_TOKEN`, `caffeineAdminToken`
-- "Claim Admin Access" button and all related UI
-- Any URL hash fragments related to admin tokens
+- `getSecretParameter` import from `useActor.ts`
+- `_initializeAccessControlWithSecret` call from `useActor.ts`
+- `adminToken` variable from `useActor.ts`
 
 ## Implementation Plan
 
-1. **Backend (Motoko)**
-   - `stable var adminPrincipal : ?Principal` -- first caller to `claimAdminWithIdentity` becomes permanent admin
-   - `claimAdminWithIdentity()` -- silently sets admin on first login, idempotent for existing admin
-   - `isAdmin(p: Principal) : Bool` -- returns false for unregistered, never traps
-   - File metadata store: `fileId`, `name`, `mimeType`, `blobHash`, `size`, `folderId`, `tags`, `isPublic`, `createdAt`
-   - `setFilePublic(fileId, isPublic)` -- admin only, persists the flag
-   - `getPublicFile(fileId)` -- returns file if `isPublic = true`, else error
-   - `listFiles`, `addFile`, `deleteFile`, `updateFile` -- admin CRUD
-   - Folder management: `createFolder`, `listFolders`, `deleteFolder`
-   - No token-based functions whatsoever
-
-2. **Frontend**
-   - Internet Identity login page -> silent `claimAdminWithIdentity` call -> dashboard
-   - Dashboard: sidebar (folder tree), main area (grid/list toggle), search/filter bar
-   - Upload: drag-and-drop zone, concurrent progress tracking, MIME type detection on client
-   - File preview dialog: image, video, audio, PDF embed, 3D model viewer
-   - Share toggle in file detail -> calls `setFilePublic` -> success/error toast
-   - Share page at `/share/:fileId/:filename` -- calls `getPublicFile`, renders with OG meta tags
-   - All blob URLs constructed as `/v1/blob/filename.ext?blob_hash=...`
-   - No admin claim UI anywhere
-   - Clean the URL hash -- never append `caffeineAdminToken` to any URL
+1. Add `getMimeTypeFromFilename(filename): string` to `mediaUtils.ts` covering all file types the vault supports (images, video, audio, PDF, 3D, documents)
+2. Update `useFiles.ts` to use the new MIME lookup as a fallback
+3. Fix `useActor.ts` by removing all token-init code
+4. Expand `setMetaTags()` in `SharePage.tsx` to cover all OG/Twitter/platform tags for maximum crawler compatibility
+5. Add "Copy media link" button on share page
+6. Add static base meta tags to `index.html`
