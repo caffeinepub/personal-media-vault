@@ -51,6 +51,7 @@ export default function AdminDashboard() {
 
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
   const [adminSetupDone, setAdminSetupDone] = useState(false);
+  const [isClaiming, setIsClaiming] = useState(false);
 
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [searchQuery, setSearchQuery] = useState("");
@@ -297,14 +298,43 @@ export default function AdminDashboard() {
     );
   }
 
+  const claimThisVault = async () => {
+    if (!actor) return;
+    setIsClaiming(true);
+    try {
+      await actor.resetAdminPrincipal();
+      await actor.claimAdminWithIdentity();
+      const admin = await actor.isCallerAdmin();
+      setIsAdmin(admin);
+      if (admin) toast.success("Vault claimed successfully");
+      else toast.error("Failed to claim vault");
+    } catch (_e) {
+      toast.error("Failed to claim vault");
+    } finally {
+      setIsClaiming(false);
+    }
+  };
+
   if (!isAdmin) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center space-y-4 max-w-sm px-4">
           <p className="text-muted-foreground text-sm">
-            This vault is already claimed by another identity. Sign in with the
-            correct Internet Identity to access it.
+            This vault is claimed by another identity.
           </p>
+          <Button
+            onClick={claimThisVault}
+            disabled={isClaiming}
+            className="w-full gap-2"
+            size="sm"
+          >
+            {isClaiming ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <HardDrive className="h-4 w-4" />
+            )}
+            Claim this vault with current identity
+          </Button>
           <Button variant="ghost" size="sm" onClick={logout}>
             Sign out
           </Button>

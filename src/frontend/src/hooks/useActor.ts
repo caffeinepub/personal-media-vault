@@ -24,7 +24,8 @@ export function useActor() {
         },
       };
 
-      return await createActorWithConfig(actorOptions);
+      const actor = await createActorWithConfig(actorOptions);
+      return actor;
     },
     // Only refetch when identity changes
     staleTime: Number.POSITIVE_INFINITY,

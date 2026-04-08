@@ -79,6 +79,13 @@ actor {
     };
   };
 
+  // Resets the admin principal to allow re-claiming.
+  // Any authenticated user can call this to reset ownership.
+  // Use this if you logged in with the wrong Internet Identity.
+  public shared ({ caller }) func resetAdminPrincipal() : async () {
+    if (caller.isAnonymous()) { return };
+    adminPrincipal := null;
+  };
   public query ({ caller }) func isCallerAdmin() : async Bool {
     isAdminCaller(caller);
   };

@@ -156,6 +156,7 @@ export interface backendInterface {
     toggleFilePublic(id: FileId): Promise<void>;
     updateFileTags(id: FileId, newTags: Array<string>): Promise<void>;
     claimAdminWithIdentity(): Promise<boolean>;
+    resetAdminPrincipal(): Promise<void>;
 }
 import type { ExternalBlob as _ExternalBlob, FileId as _FileId, FolderId as _FolderId, MediaFile as _MediaFile, MediaFolder as _MediaFolder, Timestamp as _Timestamp, UserRole as _UserRole, _CaffeineStorageRefillInformation as __CaffeineStorageRefillInformation, _CaffeineStorageRefillResult as __CaffeineStorageRefillResult } from "./declarations/backend.did.d.ts";
 export class Backend implements backendInterface {
@@ -564,6 +565,18 @@ export class Backend implements backendInterface {
         } else {
             const result = await this.actor.claimAdminWithIdentity();
             return result;
+        }
+    }
+    async resetAdminPrincipal(): Promise<void> {
+        if (this.processError) {
+            try {
+                await this.actor.resetAdminPrincipal();
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            await this.actor.resetAdminPrincipal();
         }
     }
 }

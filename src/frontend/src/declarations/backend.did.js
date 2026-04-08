@@ -77,6 +77,7 @@ export const idlService = IDL.Service({
   '_initializeAccessControlWithSecret' : IDL.Func([IDL.Text], [], []),
   'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
   'claimAdminWithIdentity' : IDL.Func([], [IDL.Bool], []),
+  'resetAdminPrincipal' : IDL.Func([], [], []),
   'createFileRecord' : IDL.Func(
       [
         FileId,
@@ -184,6 +185,7 @@ export const idlFactory = ({ IDL }) => {
     '_initializeAccessControlWithSecret' : IDL.Func([IDL.Text], [], []),
     'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
     'claimAdminWithIdentity' : IDL.Func([], [IDL.Bool], []),
+  'resetAdminPrincipal' : IDL.Func([], [], []),
     'createFileRecord' : IDL.Func(
         [
           FileId,
